@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="기부식품 재고를 국가표준식품성분 DB로 분석해 가구별 영양 맞춤 꾸러미와 안내문을 만드는 푸드뱅크 운영자용 시제품">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{margin:0}
+body{font-size:14px}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<title>채움꾸러미</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Gowun+Dodum&display=swap">
+<style>
+/* Layout: 운영자용 작업 화면. 상단 앱 바 + 3개 화면 탭(입고/배분/전달), 각 화면은 요약 → 상세 순서 */
+:root{
+  --bg:#f3f5f2; --surface:#fbfcfa; --surface-2:#eaeee9; --line:#d5dbd4;
+  --fg:#17201c; --fg-2:#4d5852; --fg-3:#76807a;
+  --accent:#0d5c4a; --accent-soft:#dcebe5; --on-accent:#ffffff;
+  --s-base:#6f84c8; --s-opt:#068061;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b;
+  --paper:#fffef9; --paper-fg:#1c1b17; --paper-line:#dcd8cc;
+  --f-ui:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --f-paper:"Gowun Dodum","IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101412; --surface:#161a18; --surface-2:#1f2522; --line:#2e3632;
+  --fg:#e9eeeb; --fg-2:#b3bdb7; --fg-3:#89938d;
+  --accent:#5cc4a4; --accent-soft:#1d3a31; --on-accent:#0b1b16;
+  --s-base:#7389cf; --s-opt:#2f9b7c;
+  --paper:#f7f5ec; --paper-fg:#1c1b17; --paper-line:#d6d1c2; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101412; --surface:#161a18; --surface-2:#1f2522; --line:#2e3632;
+  --fg:#e9eeeb; --fg-2:#b3bdb7; --fg-3:#89938d;
+  --accent:#5cc4a4; --accent-soft:#1d3a31; --on-accent:#0b1b16;
+  --s-base:#7389cf; --s-opt:#2f9b7c;
+  --paper:#f7f5ec; --paper-fg:#1c1b17; --paper-line:#d6d1c2; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-ui);font-size:14px;line-height:1.55}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:0 48px}
+header.app{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.bar{max-width:1180px;margin:0 auto;padding:12px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px}
+.brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+.brand b{font-size:19px;font-weight:700;letter-spacing:-.01em}
+.brand span{color:var(--fg-3);font-size:12.5px}
+nav.tabs{display:flex;gap:4px;max-width:100%;overflow-x:auto;background:var(--surface-2);padding:4px;border-radius:10px}
+nav.tabs button{font:inherit;font-weight:500;border:0;background:transparent;color:var(--fg-2);padding:6px 12px;border-radius:7px;cursor:pointer;white-space:nowrap}
+nav.tabs button .k{font-family:var(--f-num);font-size:11.5px;color:var(--fg-3);margin-right:6px}
+nav.tabs button[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+nav.tabs button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.note{margin-top:16px;font-size:12.5px;color:var(--fg-2);display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.note .chip{font-size:11.5px;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent);font-weight:600}
+h1{font-size:22px;font-weight:700;letter-spacing:-.015em;margin:22px 0 4px;text-wrap:balance}
+h2{font-size:15px;font-weight:600;margin:0 0 10px}
+.lead{color:var(--fg-2);margin:0 0 18px;max-width:70ch}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0}
+.grid{display:grid;gap:16px}
+.g-2{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
+@media (max-width:860px){.g-2{grid-template-columns:1fr}}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+@media (max-width:720px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.kpi .l{font-size:12px;color:var(--fg-3)}
+.kpi .v{font-family:var(--f-num);font-size:22px;font-weight:500;font-variant-numeric:tabular-nums;margin-top:2px}
+.kpi .v small{font-size:12px;color:var(--fg-3);margin-left:3px}
+.kpi .s{font-size:12px;color:var(--fg-2)}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{font-weight:500;color:var(--fg-3);font-size:12px;text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid var(--surface-2);vertical-align:middle}
+td.r,th.r{text-align:right}
+td .db{display:block;font-size:11.5px;color:var(--fg-3)}
+input.qty{width:64px;font:inherit;font-family:var(--f-num);text-align:right;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap;border:1px solid var(--line);color:var(--fg-2)}
+.pill i{width:7px;height:7px;border-radius:50%;display:inline-block;background:currentColor}
+.pill.now{color:var(--fg);border-color:var(--serious)} .pill.now i{background:var(--serious)}
+.pill.d20 i{background:var(--warn)} .pill.d30 i{background:var(--fg-3)}
+/* bar rows */
+.bars{display:grid;gap:9px}
+.brow{display:grid;grid-template-columns:78px minmax(0,1fr) 108px;gap:10px;align-items:center}
+.brow .n{font-size:12.5px;color:var(--fg-2)}
+.brow .val{font-family:var(--f-num);font-size:12px;text-align:right;color:var(--fg-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.track{position:relative;height:22px;border-radius:4px;background:var(--surface-2)}
+.track.pair{height:26px}
+.fill{position:absolute;left:0;border-radius:0 4px 4px 0;min-width:2px}
+.track:not(.pair) .fill{top:4px;height:14px;background:var(--s-opt)}
+.track.pair .fb{top:3px;height:9px;background:var(--s-base)}
+.track.pair .fo{top:14px;height:9px;background:var(--s-opt)}
+.fill.over{background:var(--crit)!important}
+.tline{position:absolute;top:-3px;bottom:-3px;width:0;border-left:2px dashed var(--fg)}
+.tline.lim{border-left-color:var(--crit)}
+.axis{display:grid;grid-template-columns:78px minmax(0,1fr) 108px;gap:10px;font-size:11px;color:var(--fg-3);font-family:var(--f-num)}
+.axis .ticks{position:relative;height:14px}
+.axis .ticks span{position:absolute;transform:translateX(-50%)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--fg-2);margin:4px 0 12px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.sw.b{background:var(--s-base)} .sw.o{background:var(--s-opt)}
+.sw.t{width:0;height:14px;border-left:2px dashed var(--fg);border-radius:0}
+.sw.l{width:0;height:14px;border-left:2px dashed var(--crit);border-radius:0}
+.req{border-left:3px solid var(--serious);padding:2px 0 2px 12px;margin-top:4px}
+.req p{margin:0 0 8px}
+.btn{font:inherit;font-weight:600;font-size:13px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:7px 12px;border-radius:8px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn:hover{border-color:var(--accent)}
+.controls{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-bottom:16px}
+.controls label{font-size:12.5px;color:var(--fg-2);display:flex;align-items:center;gap:8px}
+input[type=range]{accent-color:var(--accent);width:160px}
+/* households */
+.hh-list{display:grid;gap:14px}
+.hh{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:18px}
+@media (max-width:860px){.hh{grid-template-columns:1fr}}
+.hh h3{margin:0;font-size:16px;font-weight:600}
+.hh .who{font-size:12.5px;color:var(--fg-2);margin:2px 0 10px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.tag{font:inherit;font-size:12px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);background:transparent;color:var(--fg-3);cursor:pointer}
+.tag[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+.items{display:flex;flex-wrap:wrap;gap:5px}
+.item{font-size:12px;padding:2px 8px;border-radius:6px;background:var(--surface-2);color:var(--fg)}
+.item b{font-family:var(--f-num);font-weight:500;margin-left:4px}
+.item.up{box-shadow:inset 0 0 0 1px var(--s-opt)}
+.lims{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:3px 9px;border-radius:6px;background:var(--surface-2)}
+.st .ic{font-weight:700;font-family:var(--f-num)}
+.st.ok .ic{color:var(--good)} .st.bad .ic{color:var(--crit)}
+.st.bad{box-shadow:inset 0 0 0 1px var(--crit)}
+.sub{font-size:12px;color:var(--fg-3)}
+/* paper */
+.paper-wrap{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.paper-wrap{grid-template-columns:1fr}}
+.pick{display:grid;gap:6px}
+.pick button{font:inherit;text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:9px 12px;border-radius:9px;cursor:pointer}
+.pick button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.pick button small{display:block;color:var(--fg-3);font-size:11.5px}
+.paper{background:var(--paper);color:var(--paper-fg);border:1px solid var(--paper-line);border-radius:4px;padding:34px 36px;font-family:var(--f-paper);font-size:19px;line-height:1.7;max-width:720px;box-shadow:0 1px 0 var(--paper-line),0 8px 24px rgba(0,0,0,.06)}
+@media (max-width:560px){.paper{padding:22px 18px;font-size:17px}}
+.paper h4{font-size:27px;margin:0 0 4px;line-height:1.35;text-wrap:balance}
+.paper .date{font-size:15px;color:#5f5b50;margin-bottom:18px}
+.paper h5{font-size:20px;margin:22px 0 8px;padding-bottom:4px;border-bottom:2px solid var(--paper-fg)}
+.paper ul{margin:0;padding-left:1.1em}
+.paper li{margin:4px 0}
+.paper .salt{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spoon{display:inline-block;width:26px;height:26px;border-radius:50%;border:2px solid var(--paper-fg);position:relative;overflow:hidden;vertical-align:middle}
+.spoon i{position:absolute;left:0;bottom:0;width:100%;background:#8a8577}
+.paper .foot{margin-top:24px;font-size:13.5px;color:#5f5b50;border-top:1px solid var(--paper-line);padding-top:10px}
+.gap-lead{font-size:15px;font-weight:600;margin:0 0 4px;text-wrap:balance}
+.meter{position:relative;height:10px;border-radius:3px;background:var(--surface-2);min-width:90px}
+.meter i{position:absolute;left:0;top:0;bottom:0;border-radius:0 3px 3px 0;background:var(--s-opt)}
+.meter i.over{background:var(--crit)}
+.meter b{position:absolute;top:-3px;bottom:-3px;border-left:2px dashed var(--fg)}
+.hhdots{display:inline-flex;gap:3px;vertical-align:middle;margin-right:6px}
+.hhdots i{width:9px;height:9px;border-radius:2px;background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--line)}
+.hhdots i.miss{background:var(--serious);box-shadow:none}
+.model{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+@media (max-width:860px){.model{grid-template-columns:1fr}}
+.model>div{min-width:0}
+.model h3{font-size:13.5px;font-weight:600;margin:0 0 6px;color:var(--fg)}
+.model dl{margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;font-size:13px}
+.model dt{font-family:var(--f-num);color:var(--accent);white-space:nowrap}
+.model dd{margin:0;color:var(--fg-2)}
+.eq{font-family:var(--f-num);font-size:13px;background:var(--surface-2);border-radius:8px;padding:10px 12px;margin:0 0 8px;overflow-x:auto;white-space:pre;line-height:1.7}
+.model ol{margin:0;padding-left:1.2em;font-size:13px;color:var(--fg-2)}
+.model ol li{margin:0 0 6px}
+.model ol b{color:var(--fg);font-weight:600}
+.model p{font-size:13px;color:var(--fg-2);margin:0 0 8px}
+.tip{position:fixed;pointer-events:none;z-index:20;background:var(--fg);color:var(--bg);font-size:12px;padding:6px 9px;border-radius:6px;max-width:260px;line-height:1.45}
+.foot-note{margin-top:28px;font-size:12px;color:var(--fg-3);max-width:90ch}
+@media (prefers-reduced-motion:no-preference){.fill{transition:width .35s ease}}
+</style>
+</head>
+<body>
+
+
+<header class="app">
+  <div class="bar">
+    <div class="brand"><b>채움꾸러미</b><span>기부식품 영양 맞춤 배분 · 운영자용 시제품</span></div>
+    <nav class="tabs" role="tablist" aria-label="화면">
+      <button role="tab" id="t-a" aria-selected="true" data-v="a"><span class="k">A</span>입고 · 재고 영양</button>
+      <button role="tab" id="t-b" aria-selected="false" data-v="b"><span class="k">B</span>배분 · 꾸러미 추천</button>
+      <button role="tab" id="t-c" aria-selected="false" data-v="c"><span class="k">C</span>전달 · 안내문</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="note"><span class="chip">예시 데이터</span><span>가상의 기초푸드뱅크 1주 입고분과 이용 가구 6곳입니다. 영양값은 국가표준식품성분 DB 10.0 실제 값입니다.</span></div>
+
+  <!-- A -->
+  <section id="v-a" role="tabpanel" aria-labelledby="t-a">
+    <h1>이번 주 재고는 에너지는 넉넉하지만 비타민 C·식이섬유가 부족합니다</h1>
+    <p class="lead" id="a-lead">입고 품목을 DB 식품에 연결하고 폐기율을 빼서 실제 먹을 수 있는 양으로 계산했습니다. 수량을 바꾸면 모든 화면이 다시 계산됩니다.</p>
+    <div class="kpis" id="a-kpis"></div>
+    <div class="grid g-2">
+      <div class="panel">
+        <h2>재고 공급량 ÷ 이용 가구 필요량</h2>
+        <div class="legend"><span><i class="sw o"></i>재고 공급률(1주)</span><span><i class="sw t"></i>꾸러미 목표 <b class="num" id="a-target"></b></span><span><i class="sw l"></i>상한(나트륨)</span></div>
+        <div class="bars" id="a-bars"></div>
+        <div class="axis" id="a-axis"></div>
+      </div>
+      <div class="panel">
+        <h2>기부 요청 문구</h2>
+        <div class="req" id="a-req"></div>
+        <button class="btn" id="a-copy">문구 복사</button> <span class="sub" id="a-copied" aria-live="polite"></span>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <h2>입고 품목과 DB 매칭</h2>
+      <div class="scroll"><table id="a-table"></table></div>
+    </div>
+  </section>
+
+  <!-- B -->
+  <section id="v-b" role="tabpanel" aria-labelledby="t-b" hidden>
+    <h1 id="b-title">꾸러미 추천</h1>
+    <p class="lead">균등 배분(모든 품목을 인원수대로 나눔)에서 출발해, 가구끼리 품목을 옮기거나 맞바꿔 연령·건강 태그에 맞는 구성을 찾습니다. 가구별 에너지 몫은 필요량 비례 ±8% 안에서만 움직입니다. 태그를 누르면 다시 계산됩니다.</p>
+    <div class="controls">
+      <label for="share">꾸러미가 채울 목표 비율 <input type="range" id="share" min="30" max="80" step="5" value="50"> <b class="num" id="share-v">50%</b></label>
+      <span class="legend" style="margin:0"><span><i class="sw b"></i>균등 배분</span><span><i class="sw o"></i>채움꾸러미 추천</span><span><i class="sw t"></i>목표</span><span><i class="sw l"></i>상한</span></span>
+    </div>
+    <div class="kpis" id="b-kpis"></div>
+    <div class="hh-list" id="b-list"></div>
+  </section>
+
+  <!-- C -->
+  <section id="v-c" role="tabpanel" aria-labelledby="t-c" hidden>
+    <h1>꾸러미에 넣을 안내문</h1>
+    <p class="lead">추천 꾸러미 구성으로 가구마다 A4 한 장을 만듭니다. 먹는 순서는 배분기한, 소금 양은 DB의 나트륨 값으로 계산합니다.</p>
+    <div class="paper-wrap">
+      <div>
+        <div class="pick" id="c-pick"></div>
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="c-copy">안내문 글 복사</button><span class="sub" id="c-copied" aria-live="polite"></span></div>
+      </div>
+      <article class="paper" id="c-paper"></article>
+    </div>
+  </section>
+
+  <p class="foot-note">영양 기준은 2025 한국인 영양소 섭취기준 요약본 값이며 제출 전 원문 확인이 필요합니다. 건강 태그 기준(나트륨 조절 1,500mg, 당류 에너지의 10%, 신장 주의 칼륨 2,000mg·인 800mg)은 시제품용 예시이며 의료적 처방이 아닙니다. 배분은 균등 배분에서 출발해 가구 간 품목 이동·교환으로 점수를 올리는 지역 탐색으로 계산했고, 본 서비스에서는 정수계획법으로 대체합니다.</p>
+</main>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const INV = [{"id":"ramen","name":"라면(봉지)","db":"라면, 조리전","unit":"봉","g":120,"qty":20,"days":20,"cat":"가공","waste":0,"n":{"kcal":369.0,"prot":8.59,"fib":2.2,"sug":0.0,"ca":186.0,"fe":0.54,"k":272.0,"p":104.0,"na":1338.0,"vc":0.0,"vd":0.0,"b12":2.01}},{"id":"rice","name":"즉석밥","db":"즉석밥, 백미","unit":"개","g":210,"qty":24,"days":20,"cat":"가공","waste":0,"n":{"kcal":152.0,"prot":2.11,"fib":1.2,"sug":1.04,"ca":5.0,"fe":0.07,"k":18.0,"p":21.0,"na":1.0,"vc":0.0,"vd":0.0,"b12":0.0}},{"id":"spam","name":"런천미트 통조림","db":"햄, 런천미트햄","unit":"캔","g":200,"qty":6,"days":30,"cat":"가공","waste":0,"n":{"kcal":197.0,"prot":15.43,"fib":0.0,"sug":0.93,"ca":7.0,"fe":0.69,"k":214.0,"p":196.0,"na":778.0,"vc":22.89,"vd":0.71,"b12":0.29}},{"id":"tuna","name":"참치 통조림","db":"다랑어, 가다랑어, 통조림, 유지","unit":"캔","g":100,"qty":8,"days":30,"cat":"가공","waste":0,"n":{"kcal":185.0,"prot":22.31,"fib":0.0,"sug":0.0,"ca":8.0,"fe":0.9,"k":247.0,"p":198.0,"na":157.0,"vc":0.34,"vd":6.3,"b12":2.61}},{"id":"mack","name":"고등어 통조림","db":"고등어, 통조림","unit":"캔","g":400,"qty":3,"days":30,"cat":"가공","waste":0,"n":{"kcal":103.0,"prot":15.6,"fib":0.0,"sug":0.0,"ca":124.0,"fe":0.71,"k":284.0,"p":209.0,"na":305.0,"vc":0.0,"vd":0.0,"b12":6.02}},{"id":"curry","name":"레토르트 카레","db":"카레 소스, 레토르트","unit":"개","g":200,"qty":8,"days":20,"cat":"가공","waste":0,"n":{"kcal":72.0,"prot":2.47,"fib":2.8,"sug":7.41,"ca":14.0,"fe":0.43,"k":158.0,"p":37.0,"na":482.0,"vc":0.17,"vd":0.0,"b12":0.0}},{"id":"mandu","name":"냉동 물만두","db":"만두, 물만두","unit":"봉","g":400,"qty":4,"days":30,"cat":"가공","waste":0,"n":{"kcal":131.0,"prot":5.6,"fib":4.6,"sug":null,"ca":28.0,"fe":5.5,"k":113.0,"p":64.0,"na":239.0,"vc":0.0,"vd":null,"b12":null}},{"id":"choco","name":"초코파이","db":"과자, 초코파이","unit":"개","g":35,"qty":24,"days":20,"cat":"가공","waste":0,"n":{"kcal":428.0,"prot":4.29,"fib":2.1,"sug":31.18,"ca":132.0,"fe":5.2,"k":135.0,"p":97.0,"na":224.0,"vc":0.0,"vd":0.0,"b12":0.07}},{"id":"cereal","name":"콘시리얼","db":"시리얼, 옥수수","unit":"통","g":300,"qty":3,"days":20,"cat":"가공","waste":0,"n":{"kcal":378.0,"prot":5.11,"fib":2.5,"sug":39.55,"ca":3.0,"fe":8.96,"k":63.0,"p":30.0,"na":434.0,"vc":201.26,"vd":4.01,"b12":0.6}},{"id":"gim","name":"조미김","db":"김, 조미김, 구운것","unit":"봉","g":20,"qty":8,"days":20,"cat":"가공","waste":0,"n":{"kcal":307.0,"prot":37.69,"fib":null,"sug":0.39,"ca":174.0,"fe":5.78,"k":1328.0,"p":368.0,"na":1299.0,"vc":78.11,"vd":0.0,"b12":66.22}},{"id":"soymilk","name":"두유","db":"두유, 대두","unit":"팩","g":190,"qty":12,"days":20,"cat":"가공","waste":0,"n":{"kcal":62.0,"prot":3.01,"fib":0.7,"sug":3.02,"ca":80.0,"fe":0.56,"k":152.0,"p":45.0,"na":72.0,"vc":9.79,"vd":1.58,"b12":0.0}},{"id":"tofu","name":"두부","db":"두부","unit":"모","g":300,"qty":6,"days":0,"cat":"신선","waste":0,"n":{"kcal":97.0,"prot":9.62,"fib":2.9,"sug":0.0,"ca":64.0,"fe":1.54,"k":132.0,"p":158.0,"na":1.0,"vc":0.0,"vd":0.0,"b12":0.0}},{"id":"egg","name":"달걀","db":"달걀, 생것","unit":"개","g":50,"qty":30,"days":0,"cat":"신선","waste":11.0,"n":{"kcal":136.0,"prot":12.91,"fib":0.0,"sug":0.11,"ca":47.0,"fe":1.92,"k":127.0,"p":173.0,"na":139.0,"vc":0.0,"vd":1.04,"b12":1.18}},{"id":"milk","name":"우유","db":"우유","unit":"팩(1L)","g":1030,"qty":4,"days":0,"cat":"신선","waste":0,"n":{"kcal":65.0,"prot":3.08,"fib":0.0,"sug":4.12,"ca":113.0,"fe":0.05,"k":143.0,"p":84.0,"na":36.0,"vc":0.79,"vd":0.0,"b12":0.34}},{"id":"yog","name":"플레인 요거트","db":"요구르트, 호상, 플레인","unit":"개","g":85,"qty":10,"days":0,"cat":"신선","waste":0,"n":{"kcal":89.0,"prot":5.18,"fib":1.0,"sug":4.59,"ca":141.0,"fe":0.03,"k":174.0,"p":105.0,"na":46.0,"vc":1.32,"vd":0.0,"b12":0.25}},{"id":"kimchi","name":"배추김치","db":"김치, 배추 김치","unit":"봉","g":500,"qty":4,"days":0,"cat":"신선","waste":0,"n":{"kcal":38.0,"prot":1.97,"fib":4.3,"sug":2.87,"ca":51.0,"fe":0.51,"k":355.0,"p":53.0,"na":593.0,"vc":3.61,"vd":0.0,"b12":0.0}},{"id":"fishcake","name":"어묵","db":"어묵","unit":"봉","g":250,"qty":4,"days":0,"cat":"신선","waste":0,"n":{"kcal":169.0,"prot":11.44,"fib":0.3,"sug":3.54,"ca":49.0,"fe":0.54,"k":106.0,"p":114.0,"na":699.0,"vc":0.0,"vd":0.0,"b12":0.55}},{"id":"cabbage","name":"양배추","db":"양배추, 생것","unit":"통","g":1200,"qty":2,"days":0,"cat":"신선","waste":11.0,"n":{"kcal":33.0,"prot":1.68,"fib":2.7,"sug":4.79,"ca":45.0,"fe":0.27,"k":241.0,"p":35.0,"na":8.0,"vc":19.56,"vd":0.0,"b12":0.0}},{"id":"sprout","name":"콩나물","db":"콩나물, 생것","unit":"봉","g":300,"qty":4,"days":0,"cat":"신선","waste":0,"n":{"kcal":36.0,"prot":4.64,"fib":1.6,"sug":0.35,"ca":48.0,"fe":0.67,"k":218.0,"p":85.0,"na":1.0,"vc":1.8,"vd":0.0,"b12":0.0}},{"id":"banana","name":"바나나","db":"바나나, 생것","unit":"개","g":120,"qty":16,"days":0,"cat":"신선","waste":48.0,"n":{"kcal":77.0,"prot":1.11,"fib":2.2,"sug":14.4,"ca":6.0,"fe":0.25,"k":355.0,"p":23.0,"na":0.0,"vc":6.6,"vd":0.0,"b12":0.0}},{"id":"apple","name":"사과","db":"사과, 부사, 생것","unit":"개","g":250,"qty":8,"days":0,"cat":"신선","waste":12.0,"n":{"kcal":56.0,"prot":0.2,"fib":2.7,"sug":11.13,"ca":4.0,"fe":0.1,"k":107.0,"p":11.0,"na":0.0,"vc":1.41,"vd":0.0,"b12":0.0}}];
+const NUT = {kcal:['에너지','kcal',0],prot:['단백질','g',1],fib:['식이섬유','g',1],ca:['칼슘','mg',0],fe:['철','mg',1],vc:['비타민 C','mg',0],vd:['비타민 D','μg',1],b12:['비타민 B12','μg',1],na:['나트륨','mg',0],sug:['당류','g',0],k:['칼륨','mg',0],p:['인','mg',0]};
+// 2025 KDRIs 요약본(1일). na = 만성질환위험감소섭취량
+const K = {
+  F65:{kcal:1600,prot:50,fib:25,ca:750,fe:6,vc:100,vd:15,b12:2.4,na:1900},
+  F75:{kcal:1500,prot:50,fib:25,ca:750,fe:6,vc:100,vd:15,b12:2.4,na:1800},
+  M65:{kcal:2000,prot:60,fib:30,ca:800,fe:8,vc:100,vd:15,b12:2.4,na:1900},
+  M75:{kcal:1900,prot:60,fib:30,ca:800,fe:7,vc:100,vd:15,b12:2.4,na:1800},
+  M9:{kcal:2000,prot:50,fib:20,ca:800,fe:8,vc:70,vd:5,b12:2.0,na:2000}
+};
+const kd = p => p.age<12 ? K.M9 : K[(p.sex)+(p.age>=75?'75':'65')];
+const TAGS = {na:'나트륨 조절', sug:'당 조절', kid:'신장 주의'};
+const HH = [
+  {id:'h1',name:'김○○ 님 댁',ppl:[{age:78,sex:'F'}],tags:['na']},
+  {id:'h2',name:'박○○ 님 댁',ppl:[{age:70,sex:'M'}],tags:['sug']},
+  {id:'h3',name:'최○○ 님 댁',ppl:[{age:82,sex:'F'}],tags:['kid']},
+  {id:'h4',name:'이○○ 님 댁',ppl:[{age:72,sex:'F'},{age:10,sex:'M'}],tags:[]},
+  {id:'h5',name:'정○○ 님 댁',ppl:[{age:68,sex:'M'},{age:68,sex:'F'}],tags:['na']},
+  {id:'h6',name:'한○○ 님 댁',ppl:[{age:76,sex:'M'}],tags:[]},
+];
+const who = h => h.ppl.map(p=>`${p.age}세 ${p.age<12?(p.sex==='M'?'남아':'여아'):(p.sex==='M'?'남':'여')}`).join(' · ') + (h.ppl.length===2&&h.ppl.some(p=>p.age<12)?' (조손)':'');
+let share = 0.5;
+const fmt = (v,d=0)=> (v==null||isNaN(v))?'–':v.toLocaleString('ko-KR',{maximumFractionDigits:d,minimumFractionDigits:d});
+const pct = v => Math.round(v*100)+'%';
+const edible = it => it.g*(1-(it.waste||0)/100);
+const unitNut = (it,n)=> (it.n[n]==null?0:it.n[n])*edible(it)/100;
+
+function need(h){ // weekly
+  const r={}; for(const n of ['kcal','prot','fib','ca','fe','vc','vd','b12','na']) r[n]=h.ppl.reduce((s,p)=>s+kd(p)[n],0)*7;
+  return r;
+}
+function limits(h){ // weekly, before share
+  const L={na:h.ppl.reduce((s,p)=>s+(h.tags.includes('na')&&p.age>=12?1500:kd(p).na),0)*7};
+  if(h.tags.includes('sug')) L.sug=need(h).kcal*0.10/4;
+  if(h.tags.includes('kid')){L.k=2000*7*h.ppl.length; L.p=800*7*h.ppl.length;}
+  return L;
+}
+function weights(h){
+  const elder=h.ppl.some(p=>p.age>=65), kid=h.ppl.some(p=>p.age<12);
+  const w={kcal:0.8,prot:1.5,fib:1,ca:1,fe:1,vc:1};
+  if(elder){w.vd=0.5;w.b12=0.5;}
+  if(kid){w.ca=1.5;w.fe=1.5;}
+  if(h.tags.includes('sug')) w.fib=1.4;
+  return w;
+}
+function supply(alloc){const s={};for(const n in NUT)s[n]=0;for(const it of INV){const u=alloc[it.id]||0;if(!u)continue;for(const n in NUT)s[n]+=u*unitNut(it,n);}return s;}
+function score(h,S,ctx){
+  let sc=0; for(const n in ctx.w){const x=Math.min(1,S[n]/(ctx.R[n]*share)); sc+=ctx.w[n]*(1-(1-x)*(1-x));}
+  for(const n in ctx.L){const x=S[n]/(ctx.L[n]*share); if(x>1) sc-=1.5*(x-1)+4*(x-1)*(x-1);}
+  return sc;
+}
+function equalAlloc(){
+  const P=HH.reduce((s,h)=>s+h.ppl.length,0); const A={}; HH.forEach(h=>A[h.id]={});
+  let rot=0;
+  for(const it of INV){
+    let left=it.qty;
+    for(const h of HH){const u=Math.floor(it.qty*h.ppl.length/P);A[h.id][it.id]=u;left-=u;}
+    while(left>0){const h=HH[rot%HH.length];A[h.id][it.id]++;left--;rot++;}
+  }
+  return A;
+}
+// 균등 배분에서 출발해, 가구 간 품목 이동·교환 중 전체 점수를 올리는 것만 받아들이는 지역 탐색
+function optAlloc(){
+  const A=equalAlloc(), ctx={}, S={}, E={};
+  const needK=HH.map(h=>need(h).kcal), tot=needK.reduce((a,b)=>a+b,0);
+  const totalK=INV.reduce((s,it)=>s+it.qty*unitNut(it,'kcal'),0);
+  const U={}; INV.forEach(it=>{U[it.id]={};for(const n in NUT)U[it.id][n]=unitNut(it,n);});
+  HH.forEach((h,i)=>{ctx[h.id]={w:weights(h),R:need(h),L:limits(h),t:totalK*needK[i]/tot};S[h.id]=supply(A[h.id]);});
+  const ids=HH.map(h=>h.id), items=INV.map(it=>it.id);
+  const dev=(id,k)=>Math.abs(k-ctx[id].t)/ctx[id].t;
+  const okE=(id,k)=>dev(id,k)<=0.08||dev(id,k)<dev(id,S[id].kcal);
+  const add=(Sx,i,sgn)=>{const o={};for(const n in NUT)o[n]=Sx[n]+sgn*U[i][n];return o;};
+  const sc=id=>score(null,S[id],ctx[id]);
+  for(let pass=0;pass<80;pass++){
+    let improved=false;
+    for(const a of ids)for(const b of ids){ if(a===b) continue;
+      for(const i of items){ if(!A[a][i]) continue;
+        const base=sc(a)+sc(b);
+        // 이동
+        let Sa=add(S[a],i,-1), Sb=add(S[b],i,1);
+        if(okE(a,Sa.kcal)&&okE(b,Sb.kcal)){
+          const g=score(null,Sa,ctx[a])+score(null,Sb,ctx[b])-base;
+          if(g>1e-6){S[a]=Sa;S[b]=Sb;A[a][i]--;A[b][i]=(A[b][i]||0)+1;improved=true;continue;}
+        }
+        // 교환
+        for(const j of items){ if(j===i||!A[b][j]) continue;
+          const Sa2=add(Sa,j,1), Sb2=add(Sb,j,-1);
+          if(!okE(a,Sa2.kcal)||!okE(b,Sb2.kcal)) continue;
+          const g=score(null,Sa2,ctx[a])+score(null,Sb2,ctx[b])-base;
+          if(g>1e-6){S[a]=Sa2;S[b]=Sb2;A[a][i]--;A[b][i]=(A[b][i]||0)+1;A[b][j]--;A[a][j]=(A[a][j]||0)+1;improved=true;break;}
+        }
+        if(!A[a][i]) continue;
+      }}
+    if(!improved) break;
+  }
+  return A;
+}
+let EQ={}, OPT={};
+function recompute(){EQ=equalAlloc(); OPT=optAlloc(); renderA(); renderB(); renderC();}
+
+/* ---------- tooltip ---------- */
+const tip=document.getElementById('tip');
+document.addEventListener('pointermove',e=>{const t=e.target.closest('[data-tip]'); if(!t){tip.hidden=true;return;} tip.textContent=t.dataset.tip; tip.hidden=false; const x=Math.min(e.clientX+14,innerWidth-tip.offsetWidth-8); tip.style.left=x+'px'; tip.style.top=(e.clientY+14)+'px';});
+
+/* ---------- A ---------- */
+const MAXP=1.5;
+function axis(el){el.innerHTML='<span></span><div class="ticks">'+[0,.5,1,1.5].map(v=>`<span style="left:${v/MAXP*100}%">${v*100}%</span>`).join('')+'</div><span></span>';}
+function renderA(){
+  const S=supply(Object.fromEntries(INV.map(it=>[it.id,it.qty])));
+  const R={}; HH.forEach(h=>{const r=need(h);for(const n in r)R[n]=(R[n]||0)+r[n];});
+  const Lna=HH.reduce((s,h)=>s+limits(h).na,0);
+  const rows=['kcal','prot','fib','ca','fe','vc','vd','b12'];
+  document.getElementById('a-target').textContent=pct(share);
+  let html='';
+  for(const n of rows){const r=S[n]/R[n]; const [nm,u,d]=NUT[n];
+    html+=`<div class="brow" data-tip="${nm}: 재고 ${fmt(S[n],d)}${u} / 필요 ${fmt(R[n],d)}${u} (1주, 6가구)"><span class="n">${nm}</span><div class="track"><div class="fill" style="width:${Math.min(r,MAXP)/MAXP*100}%"></div><div class="tline" style="left:${share/MAXP*100}%"></div></div><span class="val">${pct(r)} <span style="color:var(--fg-3)">${r<share?'부족':'충분'}</span></span></div>`;}
+  const rn=S.na/Lna;
+  html+=`<div class="brow" data-tip="나트륨: 재고 ${fmt(S.na)}mg / 상한 ${fmt(Lna)}mg (1주, 태그 반영)"><span class="n">나트륨</span><div class="track"><div class="fill ${rn>share?'over':''}" style="width:${Math.min(rn,MAXP)/MAXP*100}%"></div><div class="tline lim" style="left:${share/MAXP*100}%"></div></div><span class="val">${pct(rn)} <span style="color:var(--fg-3)">상한 대비</span></span></div>`;
+  document.getElementById('a-bars').innerHTML=html; axis(document.getElementById('a-axis'));
+  const low=rows.filter(n=>S[n]/R[n]<share);
+  document.querySelector('#v-a h1').textContent = low.length? `이번 주 재고는 ${low.slice(0,3).map(n=>NUT[n][0]).join('·')}${low.length>3?' 등':''}이 목표보다 부족합니다` : '이번 주 재고는 모든 핵심 영양소가 목표를 채웁니다';
+  // kpis
+  const units=INV.reduce((s,it)=>s+it.qty,0), fresh=INV.filter(i=>i.days===0).reduce((s,it)=>s+it.qty,0);
+  const kg=INV.reduce((s,it)=>s+it.qty*it.g,0)/1000, ekg=INV.reduce((s,it)=>s+it.qty*edible(it),0)/1000;
+  document.getElementById('a-kpis').innerHTML=[
+    ['입고 품목',INV.length,'종',`총 ${fmt(units)}개`],
+    ['즉시 배분 대상',fresh,'개','두부·달걀·우유 등 신선식품'],
+    ['먹을 수 있는 양',fmt(ekg,1),'kg',`입고 ${fmt(kg,1)}kg에서 폐기율 제외`],
+    ['이용 가구',HH.length,'곳',`${HH.reduce((s,h)=>s+h.ppl.length,0)}명 · 65세 이상 ${HH.reduce((s,h)=>s+h.ppl.filter(p=>p.age>=65).length,0)}명`]
+  ].map(([l,v,u,s])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="s">${s}</div></div>`).join('');
+  // request
+  const dens=n=>[...INV].filter(it=>it.n[n]!=null&&it.n.kcal).sort((a,b)=>b.n[n]/b.n.kcal-a.n[n]/a.n.kcal).slice(0,3).map(i=>i.name);
+  const lowCore=low.filter(n=>['prot','fib','ca','vc','fe'].includes(n));
+  const reqText = lowCore.length ? `[○○푸드뱅크 기부 요청] 이번 주 기부식품은 ${lowCore.map(n=>NUT[n][0]).join(', ')}이(가) 이용 가구 필요량보다 부족합니다. ${lowCore.map(n=>`${NUT[n][0]}: ${dens(n).join('·')}`).join(' / ')} 같은 식품 기부를 특히 부탁드립니다. 이용 가구의 ${Math.round(HH.reduce((s,h)=>s+h.ppl.filter(p=>p.age>=65).length,0)/HH.reduce((s,h)=>s+h.ppl.length,0)*100)}%가 65세 이상 어르신입니다.` : '이번 주는 핵심 영양소가 모두 목표를 채워 추가 요청이 없습니다.';
+  document.getElementById('a-req').innerHTML=`<p>${reqText}</p><p class="sub">부족 영양소마다 에너지 대비 함량이 높은 품목을 DB에서 골라 예시로 넣습니다.</p>`;
+  document.getElementById('a-req').dataset.text=reqText;
+  // table
+  const pillD=d=>d===0?'<span class="pill now"><i></i>즉시</span>':`<span class="pill d${d}"><i></i>${d}일</span>`;
+  document.getElementById('a-table').innerHTML='<thead><tr><th>입고 품목</th><th class="r">수량</th><th class="r">단위 중량</th><th class="r">폐기율</th><th>배분기한</th><th class="r">에너지</th><th class="r">단백질</th><th class="r">칼슘</th><th class="r">나트륨</th></tr></thead><tbody>'+
+   INV.map(it=>`<tr><td>${it.name}<span class="db">DB: ${it.db}</span></td><td class="r"><input class="qty" type="number" min="0" max="999" id="q-${it.id}" value="${it.qty}" aria-label="${it.name} 수량"> ${it.unit}</td><td class="r num">${fmt(it.g)}g</td><td class="r num">${it.waste?it.waste+'%':'0%'}</td><td>${pillD(it.days)}</td>`+
+     ['kcal','prot','ca','na'].map(n=>`<td class="r num">${it.n[n]==null?'<span title="DB 값 없음">정보 없음</span>':fmt(unitNut(it,n)*it.qty,n==='prot'?1:0)}</td>`).join('')+'</tr>').join('')+'</tbody>';
+  document.querySelectorAll('input.qty').forEach(inp=>inp.addEventListener('change',()=>{const it=INV.find(i=>'q-'+i.id===inp.id);it.qty=Math.max(0,Math.min(999,parseInt(inp.value)||0));recompute();document.getElementById(inp.id)?.focus();}));
+}
+
+/* ---------- B ---------- */
+function covRows(h){
+  const R=need(h), L=limits(h), w=weights(h);
+  const Se=supply(EQ[h.id]), So=supply(OPT[h.id]);
+  const rows=Object.keys(w).map(n=>({n,e:Se[n]/R[n],o:So[n]/R[n]}));
+  const lims=Object.keys(L).map(n=>({n,e:Se[n]/L[n],o:So[n]/L[n]}));
+  return {rows,lims,Se,So,R,L};
+}
+function renderB(){
+  document.getElementById('share-v').textContent=pct(share);
+  let sumE=0,sumO=0,cnt=0, naE=0, naO=0, nT=0;
+  const list=HH.map(h=>{
+    const c=covRows(h);
+    for(const r of c.rows){ if(['prot','ca','fib','vc','fe'].includes(r.n)){sumE+=Math.min(1,r.e/share);sumO+=Math.min(1,r.o/share);cnt++;} }
+    if(h.tags.includes('na')){const na=c.lims.find(l=>l.n==='na'); naE+=na.e/share; naO+=na.o/share; nT++;}
+    const bars=c.rows.map(r=>{const [nm,u,d]=NUT[r.n];return `<div class="brow" data-tip="${nm} 1주 기준 대비 — 균등 ${pct(r.e)} · 추천 ${pct(r.o)} (목표 ${pct(share)})"><span class="n">${nm}</span><div class="track pair"><div class="fill fb" style="width:${Math.min(r.e,MAXP)/MAXP*100}%"></div><div class="fill fo" style="width:${Math.min(r.o,MAXP)/MAXP*100}%"></div><div class="tline" style="left:${share/MAXP*100}%"></div></div><span class="val">${pct(r.e)} → <b style="color:var(--fg)">${pct(r.o)}</b></span></div>`}).join('');
+    const lims=c.lims.map(l=>{const bad=l.o>share; const nm=NUT[l.n][0]; return `<span class="st ${bad?'bad':'ok'}" data-tip="${nm} 상한의 ${pct(share)}까지 허용. 균등 ${pct(l.e)} → 추천 ${pct(l.o)}"><span class="ic">${bad?'!':'✓'}</span>${nm} ${bad?'상한 초과':'상한 이내'} <span class="num">${pct(l.e/share)}→${pct(l.o/share)}</span></span>`}).join('');
+    const items=INV.filter(it=>OPT[h.id][it.id]).map(it=>{const d=OPT[h.id][it.id]-(EQ[h.id][it.id]||0);return `<span class="item ${d>0?'up':''}" data-tip="균등 배분 ${EQ[h.id][it.id]||0}${it.unit} → 추천 ${OPT[h.id][it.id]}${it.unit}">${it.name}<b>${OPT[h.id][it.id]}</b></span>`}).join('');
+    const tagBtns=Object.entries(TAGS).map(([k,v])=>`<button class="tag" id="tag-${h.id}-${k}" data-h="${h.id}" data-t="${k}" aria-pressed="${h.tags.includes(k)}">${v}</button>`).join('');
+    return `<article class="panel hh"><div><h3>${h.name}</h3><div class="who">${who(h)}</div><div class="tags">${tagBtns}</div><div class="sub" style="margin-bottom:6px">추천 꾸러미 (테두리 = 균등 배분보다 늘어난 품목)</div><div class="items">${items}</div><div class="lims">${lims}</div></div><div><div class="bars">${bars}</div><div class="axis">${''}</div></div></article>`;
+  });
+  document.getElementById('b-list').innerHTML=list.join('');
+  document.querySelectorAll('#b-list .axis').forEach(axis);
+  const e=sumE/cnt,o=sumO/cnt;
+  document.getElementById('b-title').textContent=`추천 꾸러미는 핵심 영양소 목표 달성률을 ${pct(e)}에서 ${pct(o)}로 올립니다`;
+  document.getElementById('b-kpis').innerHTML=[
+    ['핵심 영양소 목표 달성률',pct(o),'',`균등 배분 ${pct(e)} · 단백질·식이섬유·칼슘·철·비타민 C 평균`],
+    ['나트륨 조절 가구의 나트륨',nT?pct(naO/nT):'–','',nT?`상한 몫 대비 평균 · 균등 배분 ${pct(naE/nT)}`:'태그가 있는 가구 없음'],
+    ['배분한 재고',fmt(INV.reduce((s,it)=>s+it.qty,0)),'개','남은 재고 없음 · 신선식품 이번 회차 전량'],
+    ['가구별 에너지 몫','±8%','','필요 에너지에 비례한 몫 안에서 조정']
+  ].map(([l,v,u,s])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="s">${s}</div></div>`).join('');
+  document.querySelectorAll('.tag').forEach(b=>b.addEventListener('click',()=>{const h=HH.find(x=>x.id===b.dataset.h);const t=b.dataset.t;h.tags=h.tags.includes(t)?h.tags.filter(x=>x!==t):[...h.tags,t];const id=b.id;recompute();document.getElementById(id)?.focus();}));
+}
+
+const josa=(w,a,b)=>{const c=w.charCodeAt(w.length-1);return w+((c>=0xAC00&&c<=0xD7A3&&(c-0xAC00)%28)?a:b);};
+function renderGap(){
+  const core=['prot','fib','ca','fe','vc','vd'];
+  const fill={prot:['egg','달걀'],fib:['sprout','콩나물'],ca:['milk','우유'],fe:['tofu','두부'],vc:['cabbage','양배추'],vd:['tuna','참치 통조림']};
+  const rows=[]; const P=HH.reduce((s,h)=>s+h.ppl.length,0);
+  for(const n of core){
+    let sup=0,tgt=0,def=0,miss=[];
+    for(const h of HH){const R=need(h)[n]*share, S=supply(OPT[h.id])[n]; sup+=S; tgt+=R; def+=Math.max(0,R-S); miss.push(S<R*0.98);}
+    const [id,nm]=fill[n]; const it=INV.find(i=>i.id===id); const per=unitNut(it,n);
+    rows.push({n,sup,tgt,def,miss,it,units:per>0?Math.ceil(def/per):null});
+  }
+  rows.sort((a,b)=>a.sup/a.tgt-b.sup/b.tgt);
+  const bad=rows.filter(r=>r.miss.some(Boolean));
+  const [nm0]=NUT[rows[0].n];
+  document.getElementById('gap-lead').textContent = bad.length
+    ? `추천 배분 후에도 ${bad.slice(0,3).map(r=>`${josa(NUT[r.n][0],'은','는')} ${HH.length}가구 중 ${r.miss.filter(Boolean).length}가구`).join(', ')}가 목표에 못 미칩니다. ${josa(nm0,'은','는')} 재고 총량이 목표의 ${pct(rows[0].sup/rows[0].tgt)}뿐입니다.`
+    : '추천 배분으로 모든 가구가 핵심 영양소 목표를 채웁니다.';
+  document.getElementById('gap-table').innerHTML='<thead><tr><th>영양소</th><th>재고 총량 ÷ 전체 목표</th><th>추천 배분 후 목표 미달 가구</th><th class="r">남는 부족분(1주)</th><th>채우려면 (DB 기준)</th></tr></thead><tbody>'+
+    rows.map(r=>{const [nm,u,d]=NUT[r.n]; const ratio=r.sup/r.tgt; const k=r.miss.filter(Boolean).length;
+      return `<tr><td>${nm}</td><td><div style="display:flex;gap:8px;align-items:center"><div class="meter" style="flex:1" data-tip="${nm}: 재고 ${fmt(r.sup,d)}${u} / 목표 ${fmt(r.tgt,d)}${u}"><i style="width:${Math.min(ratio,1.5)/1.5*100}%"></i><b style="left:${1/1.5*100}%"></b></div><span class="num" style="width:42px;text-align:right">${pct(ratio)}</span></div></td><td><span class="hhdots">${r.miss.map((m,i)=>`<i class="${m?'miss':''}" data-tip="${HH[i].name} ${m?'목표 미달':'목표 달성'}"></i>`).join('')}</span><span class="num">${k}/${HH.length}</span></td><td class="r num">${r.def>0?fmt(r.def,d)+u:'–'}</td><td>${r.units?`${r.it.name} 약 <b class="num">${r.units}</b>${r.it.unit}`:'–'}</td></tr>`}).join('')+'</tbody>';
+  const S=supply(Object.fromEntries(INV.map(it=>[it.id,it.qty])));
+  const Lsum=HH.reduce((s,h)=>s+limits(h).na*share,0);
+  const src=INV.map(it=>({nm:it.name,v:unitNut(it,'na')*it.qty})).sort((a,b)=>b.v-a.v).slice(0,3);
+  const over=HH.filter(h=>supply(OPT[h.id]).na>limits(h).na*share).length;
+  document.getElementById('gap-na').innerHTML=`나트륨은 반대 방향의 공백입니다. 재고 나트륨 총량이 전체 상한 몫의 <b class="num">${pct(S.na/Lsum)}</b>이라 추천 배분 후에도 <b class="num">${over}</b>가구가 상한을 넘습니다. ${src.map(s=>`${s.nm} ${pct(s.v/S.na)}`).join(', ')}가 나트륨의 대부분을 차지하므로, 기부 요청에는 저염·무가염 식품을 함께 적습니다.`;
+}
+
+/* ---------- C ---------- */
+let cur='h1';
+function guide(h){
+  const A=OPT[h.id]; const has=id=>(A[id]||0)>0; const q=id=>A[id]||0;
+  const grp=[[0,'받은 날부터 2~3일 안에 드세요'],[20,'이번 주 안에 드세요'],[30,'한 달 안에 천천히 드세요']];
+  const byD=grp.map(([d,t])=>({t,items:INV.filter(it=>it.days===d&&has(it.id)).map(it=>`${it.name} ${q(it.id)}${it.unit}`)})).filter(g=>g.items.length);
+  const tips=[];
+  if(has('ramen')&&has('egg')) tips.push('라면을 끓일 때 달걀 1개를 넣으세요. 단백질이 두 배 가까이 늘어요.');
+  if(has('ramen')&&(has('cabbage')||has('sprout'))) tips.push(`라면에 ${has('sprout')?'콩나물':'양배추'} 한 줌을 넣으세요.`);
+  if(has('ramen')&&h.tags.includes('na')) tips.push('라면 스프는 절반만 넣고, 국물은 남기세요.');
+  if(has('spam')) tips.push('통조림 햄은 끓는 물에 한 번 데친 뒤 드시면 덜 짭니다.');
+  if(has('tofu')) tips.push('두부는 부치거나 김치찌개에 넣어 드세요. 냉장 보관하세요.');
+  if(has('milk')||has('yog')) tips.push('우유나 요거트는 하루 한 번 드세요. 뼈 건강에 필요한 칼슘을 채워 줘요.');
+  if(h.tags.includes('sug')&&(has('choco')||has('cereal'))) tips.push('과자와 시리얼은 하루 한 번, 조금만 드세요.');
+  if(h.tags.includes('kid')) tips.push('바나나·김·김치는 칼륨이 많아요. 조금씩 드세요.');
+  if(has('tuna')||has('mack')) tips.push('참치·고등어 통조림은 즉석밥과 함께 덮밥으로 드세요.');
+  const S=supply(A); const naDay=S.na/7/h.ppl.length; const salt=naDay*2.54/1000; const tsp=salt/5;
+  const today=new Date(); const ds=`${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
+  return {byD,tips:tips.slice(0,5),salt,tsp,ds};
+}
+function renderC(){
+  document.getElementById('c-pick').innerHTML=HH.map(h=>`<button id="pk-${h.id}" data-h="${h.id}" aria-pressed="${h.id===cur}">${h.name}<small>${who(h)}${h.tags.length?' · '+h.tags.map(t=>TAGS[t]).join(', '):''}</small></button>`).join('');
+  document.querySelectorAll('#c-pick button').forEach(b=>b.addEventListener('click',()=>{cur=b.dataset.h;renderC();document.getElementById('pk-'+cur).focus();}));
+  const h=HH.find(x=>x.id===cur), g=guide(h);
+  const fillPct=Math.min(1,g.tsp)*100;
+  document.getElementById('c-paper').innerHTML=`<h4>${h.name.replace(' 님 댁','')} 님, 이번 주 꾸러미 안내입니다</h4><div class="date">${g.ds} · ○○푸드뱅크</div>`+
+    g.byD.map(x=>`<h5>${x.t}</h5><ul>${x.items.map(i=>`<li>${i}</li>`).join('')}</ul>`).join('')+
+    `<h5>이렇게 드시면 더 좋아요</h5><ul>${g.tips.map(t=>`<li>${t}</li>`).join('')}</ul>`+
+    `<h5>이 꾸러미의 소금 양</h5><p class="salt"><span class="spoon"><i style="height:${fillPct}%"></i></span><span>하루에 소금 약 <b>${fmt(g.salt,1)}g</b>, 작은 숟가락 약 <b>${fmt(g.tsp,1)}개</b> 분량이 들어 있어요.${h.tags.includes('na')?' 국이나 찌개 간은 싱겁게 해 주세요.':''}</span></p>`+
+    `<div class="foot">궁금한 점은 담당 복지사에게 물어보세요. 이 안내는 영양 정보이며 치료를 대신하지 않습니다.</div>`;
+  document.getElementById('c-paper').dataset.text=document.getElementById('c-paper').innerText;
+}
+
+/* ---------- copy & tabs ---------- */
+function copy(text,out){ const done=m=>{document.getElementById(out).textContent=m;setTimeout(()=>document.getElementById(out).textContent='',2500);};
+  try{navigator.clipboard.writeText(text).then(()=>done('복사했습니다'),()=>done('복사하지 못했습니다. 글을 직접 선택해 주세요'));}catch(e){done('복사하지 못했습니다. 글을 직접 선택해 주세요');}}
+document.getElementById('a-copy').addEventListener('click',()=>copy(document.getElementById('a-req').dataset.text,'a-copied'));
+document.getElementById('c-copy').addEventListener('click',()=>copy(document.getElementById('c-paper').innerText,'c-copied'));
+document.getElementById('share').addEventListener('input',e=>{document.getElementById('share-v').textContent=e.target.value+'%';});
+document.getElementById('share').addEventListener('change',e=>{share=e.target.value/100; recompute();});
+function show(v){document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v));['a','b','c'].forEach(x=>document.getElementById('v-'+x).hidden=x!==v);try{localStorage.setItem('chaeum-tab',v)}catch(e){}}
+document.querySelectorAll('nav.tabs button').forEach(b=>b.addEventListener('click',()=>show(b.dataset.v)));
+recompute();
+const hash=location.hash.replace('#','');
+let start='a'; try{start=localStorage.getItem('chaeum-tab')||'a'}catch(e){}
+if(['a','b','c'].includes(hash)) start=hash;
+show(start);
+</script>
+
+</body>
+</html>
